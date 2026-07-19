@@ -1,0 +1,15 @@
+{% assign wu = include.item %}
+<a class="card card--writeup" href="{{ wu.url | relative_url }}">
+  <div class="card-meta mono">
+    <span class="ref">{{ wu.ref | default: 'WU' }}</span>
+    <span class="dot">·</span>
+    <time datetime="{{ wu.date | date_to_xmlschema }}">{{ wu.date | date: '%Y-%m-%d' }}</time>
+  </div>
+  <h3 class="card-title">{{ wu.title }}</h3>
+  {% if wu.summary %}<p class="card-summary">{{ wu.summary }}</p>{% endif %}
+  {% if wu.tags %}
+    <ul class="tags mono">
+      {% for tag in wu.tags %}<li>{{ tag }}</li>{% endfor %}
+    </ul>
+  {% endif %}
+</a>

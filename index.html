@@ -1,0 +1,39 @@
+---
+layout: default
+---
+<section class="hero wrap">
+  <p class="eyebrow mono">// {{ site.tagline }}</p>
+  <h1 class="hero-title">{{ site.title }}</h1>
+  <p class="hero-lede">{{ site.description }}</p>
+  <div class="hero-status mono">
+    <span class="pulse" aria-hidden="true"></span>
+    <span>Interests:</span>
+    <span class="hero-focus">Capture&nbsp;the&nbsp;Flag · Malware · Coding</span>
+  </div>
+</section>
+
+{% assign recent_writeups = site.writeups | sort: 'date' | reverse %}
+<section class="section wrap">
+  <div class="section-head">
+    <h2 class="section-title"><span class="mono num">//</span> Write-ups</h2>
+    <a class="section-link mono" href="{{ '/writeups/' | relative_url }}">all write-ups →</a>
+  </div>
+  <div class="grid">
+    {% for item in recent_writeups limit: 4 %}
+      {% include card-writeup.html item=item %}
+    {% endfor %}
+  </div>
+</section>
+
+{% assign recent_tools = site.tools | sort: 'date' | reverse %}
+<section class="section wrap">
+  <div class="section-head">
+    <h2 class="section-title"><span class="mono num">//</span> Tools</h2>
+    <a class="section-link mono" href="{{ '/tools/' | relative_url }}">all tools →</a>
+  </div>
+  <div class="grid">
+    {% for item in recent_tools limit: 4 %}
+      {% include card-tool.html item=item %}
+    {% endfor %}
+  </div>
+</section>

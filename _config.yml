@@ -1,0 +1,47 @@
+title: "Hackopotamus"
+tagline: "SOC Analyst and Offensive Security enthusiast"
+description: "Write-ups and tools in offensive and defensive security."
+author: "Lloyd Wright"
+
+github: "Hackopotamus"
+email: ""
+linkedin: "https://uk.linkedin.com/in/lloyd-wright-b77636171"
+
+url: ""
+baseurl: "/portfolio"
+
+collections:
+  writeups:
+    output: true
+    permalink: /writeups/:name/
+  tools:
+    output: true
+    permalink: /tools/:name/
+
+defaults:
+  - scope:
+      path: ""
+      type: "writeups"
+    values:
+      layout: "writeup"
+  - scope:
+      path: ""
+      type: "tools"
+    values:
+      layout: "tool"
+
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  syntax_highlighter_opts:
+    block:
+      line_numbers: false
+
+plugins:
+  - jekyll-feed
+  - jekyll-seo-tag
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - vendor

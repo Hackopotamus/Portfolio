@@ -1,0 +1,19 @@
+---
+layout: default
+title: Write-ups
+permalink: /writeups/
+---
+<section class="section wrap">
+  <header class="index-head">
+    <p class="eyebrow mono">// write-ups</p>
+    <h1 class="section-title">Write-ups</h1>
+    <p class="index-lede">Research, analysis, and walkthroughs — {{ site.writeups | size }} total.</p>
+  </header>
+
+  {% assign all_writeups = site.writeups | sort: 'date' | reverse %}
+  <div class="grid">
+    {% for item in all_writeups %}
+      {% include card-writeup.html item=item %}
+    {% endfor %}
+  </div>
+</section>

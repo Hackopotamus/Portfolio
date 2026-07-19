@@ -1,0 +1,16 @@
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="{{ '/' | relative_url }}">
+      <span class="brand-mark">▚</span>
+      <span class="brand-name">{{ site.title }}</span>
+    </a>
+    <nav class="site-nav" aria-label="Primary">
+      <a href="{{ '/writeups/' | relative_url }}">Write-ups</a>
+      <a href="{{ '/tools/' | relative_url }}">Tools</a>
+      <a href="{{ '/about/' | relative_url }}">About</a>
+      {% if site.github and site.github != "your-username" %}
+        <a class="nav-ext" href="https://github.com/{{ site.github }}" rel="me">GitHub&nbsp;↗</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>

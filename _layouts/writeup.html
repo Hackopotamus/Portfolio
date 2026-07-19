@@ -1,0 +1,23 @@
+---
+layout: default
+---
+<article class="entry wrap">
+  <a class="back mono" href="{{ '/writeups/' | relative_url }}">← write-ups</a>
+
+  <header class="entry-head">
+    <div class="entry-meta mono">
+      <span class="ref">{{ page.ref | default: 'WU' }}</span>
+      <span class="dot">·</span>
+      <time datetime="{{ page.date | date_to_xmlschema }}">{{ page.date | date: '%d %b %Y' }}</time>
+    </div>
+    <h1 class="entry-title">{{ page.title }}</h1>
+    {% if page.summary %}<p class="entry-summary">{{ page.summary }}</p>{% endif %}
+    {% if page.tags %}
+      <ul class="tags mono">{% for tag in page.tags %}<li>{{ tag }}</li>{% endfor %}</ul>
+    {% endif %}
+  </header>
+
+  <div class="prose">
+    {{ content }}
+  </div>
+</article>
